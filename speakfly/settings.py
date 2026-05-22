@@ -14,7 +14,12 @@ SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'dev-secret-key-change-in-produ
 
 DEBUG = os.environ.get('DJANGO_DEBUG', 'True').lower() == 'true'
 
-ALLOWED_HOSTS = ['*']
+ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '*').split(',')
+
+# 日志（UTC 按日切分，30 天删除，7 天前压缩）
+LOG_DIR = BASE_DIR / 'logs'
+LOG_RETENTION_DAYS = 30
+LOG_COMPRESS_AFTER_DAYS = 7
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -26,6 +31,7 @@ INSTALLED_APPS = [
     'rest_framework',
     'rest_framework_simplejwt',
     'corsheaders',
+    'speakfly.apps.SpeakflyConfig',
     'accounts',
     'videos',
 ]
@@ -37,6 +43,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'speakfly.middleware.RequestLoggingMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -110,9 +117,46 @@ REST_FRAMEWORK = {
     ),
 }
 
-# CORS: 允许前端开发服务器访问
-CORS_ALLOW_ALL_ORIGINS = True
+# CORS
+_cors_origins = os.environ.get('CORS_ALLOWED_ORIGINS', '')
+if _cors_origins:
+    CORS_ALLOWED_ORIGINS = [o.strip() for o in _cors_origins.split(',') if o.strip()]
+    CORS_ALLOW_ALL_ORIGINS = False
+else:
+    CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOW_CREDENTIALS = True
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'utc_daily_file': {
+            '()': 'speakfly.log_handlers.UtcDailyFileHandler',
+            'log_dir': LOG_DIR,
+            'retention_days': LOG_RETENTION_DAYS,
+            'compress_after_days': LOG_COMPRESS_AFTER_DAYS,
+        },
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+    },
+    'formatters': {
+        'simple': {
+            '()': 'speakfly.log_handlers.SanitizedFormatter',
+            'fmt': '%(asctime)s UTC | %(levelname)s | %(message)s',
+            'datefmt': '%Y-%m-%d %H:%M:%S',
+        },
+    },
+    'root': {
+        'handlers': ['utc_daily_file', 'console'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django.request': {'level': 'WARNING', 'propagate': True},
+        'speakfly.request': {'level': 'INFO', 'propagate': True},
+    },
+}
 
 # Simple JWT
 from datetime import timedelta

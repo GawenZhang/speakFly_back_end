@@ -67,6 +67,16 @@ python manage.py runserver
 
 默认地址：http://127.0.0.1:8000
 
+健康检查：`GET http://127.0.0.1:8000/api/health/`
+
+## 日志（UTC）
+
+- 目录：`logs/speakfly-YYYY-MM-DD.log`（纯文本，每行一条）
+- 7 天前的日志自动压缩为 `.gz`
+- 30 天前的日志自动删除（GDPR，不记录密码/Token/完整邮箱）
+- 手动维护：`python manage.py maintain_logs`
+- 建议 crontab 每日执行：`0 3 * * * cd /path/to/backend && python manage.py maintain_logs`
+
 ## API 概览
 
 - **认证**
