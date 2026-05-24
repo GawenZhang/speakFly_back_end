@@ -64,11 +64,10 @@ def upload_file_to_oss(file, subdir='', allowed_extensions=None):
 
     object_key = f"{base_dir}/{subdir}/{uuid.uuid4().hex}{ext}"
     try:
-        if hasattr(file, 'read'):
-            content = file.read()
-        else:
-            content = file
-        bucket.put_object(object_key, content)
+        # 流式上传，避免大视频整文件读入内存
+        if hasattr(file, 'seek'):
+            file.seek(0)
+        bucket.put_object(object_key, file)
         url = get_public_url(object_key)
         return True, url, None
     except Exception as e:

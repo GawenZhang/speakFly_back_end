@@ -157,7 +157,7 @@ class NextEpisodeView(APIView):
 
 # 允许上传的扩展名（图片/视频/音频存 OSS，数据库只存 URL）
 UPLOAD_IMAGE_EXT = {'jpg', 'jpeg', 'png', 'gif', 'webp'}
-UPLOAD_VIDEO_EXT = {'mp4', 'webm', 'mov', 'avi'}
+UPLOAD_VIDEO_EXT = {'mp4', 'webm', 'mov', 'avi', 'm4v', 'mkv'}
 UPLOAD_AUDIO_EXT = {'mp3', 'wav', 'ogg', 'm4a'}
 
 
