@@ -25,6 +25,20 @@ class RequestLoggingMiddleware:
         user = getattr(request, 'user', None)
         user_id = user.id if user and getattr(user, 'is_authenticated', False) else None
 
+        if request.path.startswith('/api/upload'):
+            content_length = request.META.get('CONTENT_LENGTH', '-')
+            content_type = request.META.get('CONTENT_TYPE', '-')
+            auth_present = 'yes' if request.META.get('HTTP_AUTHORIZATION') else 'no'
+            logger.info(
+                'rid=%s upload_request method=%s path=%s content_length=%s content_type=%s auth=%s',
+                request_id,
+                request.method,
+                sanitize_message(request.path),
+                content_length,
+                sanitize_message(content_type[:80] if content_type else '-'),
+                auth_present,
+            )
+
         response = self.get_response(request)
         duration_ms = int((time.perf_counter() - start) * 1000)
         status = getattr(response, 'status_code', 0)

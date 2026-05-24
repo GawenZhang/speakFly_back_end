@@ -172,13 +172,27 @@ class SignOSSUploadView(APIView):
     permission_classes = [IsAuthenticated, IsAdminUser]
 
     def post(self, request):
+        import logging
         from speakfly.oss_utils import create_presigned_upload
+        logger = logging.getLogger('speakfly.upload')
+
         filename = (request.data.get('filename') or '').strip()
-        if not filename:
-            return Response({'detail': '缺少 filename'}, status=status.HTTP_400_BAD_REQUEST)
         upload_type = (request.data.get('type') or 'video').lower()
-        subdir, allowed = UPLOAD_TYPE_MAP.get(upload_type, ('file', None))
         content_type = (request.data.get('contentType') or '').strip()
+        logger.info(
+            'sign_start filename=%s type=%s content_type=%s user_id=%s is_staff=%s',
+            filename,
+            upload_type,
+            content_type,
+            getattr(request.user, 'id', None),
+            getattr(request.user, 'is_staff', False),
+        )
+
+        if not filename:
+            logger.warning('sign_failed reason=missing_filename user_id=%s', getattr(request.user, 'id', None))
+            return Response({'detail': '缺少 filename'}, status=status.HTTP_400_BAD_REQUEST)
+
+        subdir, allowed = UPLOAD_TYPE_MAP.get(upload_type, ('file', None))
         ok, upload_url, public_url, err = create_presigned_upload(
             filename,
             subdir=subdir,
@@ -186,7 +200,15 @@ class SignOSSUploadView(APIView):
             content_type=content_type,
         )
         if not ok:
+            logger.warning('sign_failed filename=%s err=%s', filename, err)
             return Response({'detail': err or '签名失败', 'url': None}, status=status.HTTP_400_BAD_REQUEST)
+
+        logger.info(
+            'sign_ok filename=%s public_url=%s upload_host=%s',
+            filename,
+            (public_url or '')[:80],
+            upload_url.split('/')[2] if upload_url and '://' in upload_url else '-',
+        )
         return Response({'uploadUrl': upload_url, 'url': public_url, 'detail': '签名成功'})
 
 

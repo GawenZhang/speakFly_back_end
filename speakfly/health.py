@@ -2,4 +2,9 @@ from django.http import JsonResponse
 
 
 def health_check(request):
-    return JsonResponse({'status': 'ok', 'service': 'speakfly-api'})
+    return JsonResponse({
+        'status': 'ok',
+        'service': 'speakfly-api',
+        'uploadMode': 'direct-oss-v2',
+        'uploadSignPath': '/api/upload/sign/',
+    })
