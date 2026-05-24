@@ -43,6 +43,34 @@ def get_public_url(object_key):
     return f"https://{bucket_name}.{base}/{object_key}"
 
 
+def create_presigned_upload(filename, subdir='', allowed_extensions=None, content_type='', expires=3600):
+    """
+    生成浏览器直传 OSS 的预签名 PUT URL，绕过后端/Nginx 体积限制。
+    :return: (success, upload_url, public_url, error)
+    """
+    bucket = get_oss_bucket()
+    if not bucket:
+        return False, None, None, 'OSS 未配置，请在环境变量中设置 OSS_ACCESS_KEY_ID、OSS_ACCESS_KEY_SECRET、OSS_BUCKET_NAME、OSS_ENDPOINT'
+
+    ext = ''
+    if filename:
+        ext = os.path.splitext(filename)[1].lower()
+    if allowed_extensions and ext and ext.lstrip('.') not in {e.lstrip('.') for e in allowed_extensions}:
+        return False, None, None, f'不允许的文件类型，允许: {allowed_extensions}'
+
+    base_dir = getattr(settings, 'OSS_UPLOAD_DIR', 'speakfly')
+    object_key = f"{base_dir}/{subdir}/{uuid.uuid4().hex}{ext}"
+    ct = content_type or 'application/octet-stream'
+    try:
+        upload_url = bucket.sign_url('PUT', object_key, expires, headers={'Content-Type': ct})
+        public_url = get_public_url(object_key)
+        if not public_url:
+            return False, None, None, '无法生成文件访问 URL，请检查 OSS_ENDPOINT 配置'
+        return True, upload_url, public_url, None
+    except Exception as e:
+        return False, None, None, str(e)
+
+
 def upload_file_to_oss(file, subdir='', allowed_extensions=None):
     """
     将文件上传到 OSS。

@@ -160,26 +160,61 @@ UPLOAD_IMAGE_EXT = {'jpg', 'jpeg', 'png', 'gif', 'webp'}
 UPLOAD_VIDEO_EXT = {'mp4', 'webm', 'mov', 'avi', 'm4v', 'mkv'}
 UPLOAD_AUDIO_EXT = {'mp3', 'wav', 'ogg', 'm4a'}
 
+UPLOAD_TYPE_MAP = {
+    'image': ('image', UPLOAD_IMAGE_EXT),
+    'video': ('video', UPLOAD_VIDEO_EXT),
+    'audio': ('audio', UPLOAD_AUDIO_EXT),
+}
+
+
+class SignOSSUploadView(APIView):
+    """获取 OSS 直传签名 URL（视频等大文件走浏览器 → OSS，不经 Nginx 体积限制）"""
+    permission_classes = [IsAuthenticated, IsAdminUser]
+
+    def post(self, request):
+        from speakfly.oss_utils import create_presigned_upload
+        filename = (request.data.get('filename') or '').strip()
+        if not filename:
+            return Response({'detail': '缺少 filename'}, status=status.HTTP_400_BAD_REQUEST)
+        upload_type = (request.data.get('type') or 'video').lower()
+        subdir, allowed = UPLOAD_TYPE_MAP.get(upload_type, ('file', None))
+        content_type = (request.data.get('contentType') or '').strip()
+        ok, upload_url, public_url, err = create_presigned_upload(
+            filename,
+            subdir=subdir,
+            allowed_extensions=allowed,
+            content_type=content_type,
+        )
+        if not ok:
+            return Response({'detail': err or '签名失败', 'url': None}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'uploadUrl': upload_url, 'url': public_url, 'detail': '签名成功'})
+
 
 class UploadToOSSView(APIView):
     """上传文件到阿里云 OSS，返回 URL。仅管理员。type: image | video | audio"""
     permission_classes = [IsAuthenticated, IsAdminUser]
 
     def post(self, request):
+        import logging
         from speakfly.oss_utils import upload_file_to_oss
+        logger = logging.getLogger('speakfly.upload')
         file_obj = request.FILES.get('file')
         if not file_obj:
             return Response({'detail': '请选择文件', 'url': None}, status=status.HTTP_400_BAD_REQUEST)
         upload_type = (request.data.get('type') or request.POST.get('type') or 'image').lower()
-        if upload_type == 'image':
-            subdir, allowed = 'image', UPLOAD_IMAGE_EXT
-        elif upload_type == 'video':
-            subdir, allowed = 'video', UPLOAD_VIDEO_EXT
-        elif upload_type == 'audio':
-            subdir, allowed = 'audio', UPLOAD_AUDIO_EXT
-        else:
-            subdir, allowed = 'file', None
+        subdir, allowed = UPLOAD_TYPE_MAP.get(upload_type, ('file', None))
+        logger.info(
+            'upload_start type=%s size=%s name=%s user_id=%s',
+            upload_type,
+            getattr(file_obj, 'size', -1),
+            getattr(file_obj, 'name', ''),
+            getattr(request.user, 'id', None),
+        )
         ok, url, err = upload_file_to_oss(file_obj, subdir=subdir, allowed_extensions=allowed)
         if not ok:
+            logger.warning('upload_failed type=%s err=%s', upload_type, err)
             return Response({'detail': err or '上传失败', 'url': None}, status=status.HTTP_400_BAD_REQUEST)
+        if not url:
+            return Response({'detail': '上传成功但未生成 URL，请检查 OSS_ENDPOINT', 'url': None}, status=status.HTTP_400_BAD_REQUEST)
+        logger.info('upload_ok type=%s url=%s', upload_type, url[:80])
         return Response({'url': url, 'detail': '上传成功'})
