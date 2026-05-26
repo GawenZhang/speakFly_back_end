@@ -58,10 +58,11 @@ def create_presigned_upload(filename, subdir='', allowed_extensions=None, conten
     if allowed_extensions and ext and ext.lstrip('.') not in {e.lstrip('.') for e in allowed_extensions}:
         return False, None, None, f'不允许的文件类型，允许: {allowed_extensions}'
 
-    base_dir = getattr(settings, 'OSS_UPLOAD_DIR', 'speakfly')
+    base_dir = (getattr(settings, 'OSS_UPLOAD_DIR', 'speakfly') or 'speakfly').strip().strip('/')
     object_key = f"{base_dir}/{subdir}/{uuid.uuid4().hex}{ext}"
-    ct = content_type or 'application/octet-stream'
+    ct = (content_type or 'application/octet-stream').split(';')[0].strip()
     try:
+        # 预签名时绑定 Content-Type，浏览器 PUT 必须发送相同值
         upload_url = bucket.sign_url('PUT', object_key, expires, headers={'Content-Type': ct})
         public_url = get_public_url(object_key)
         if not public_url:
