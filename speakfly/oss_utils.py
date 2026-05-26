@@ -27,6 +27,13 @@ def get_oss_bucket():
         return None
 
 
+def _ensure_https_url(url):
+    """OSS 外链与预签名 URL 统一使用 HTTPS。"""
+    if url and url.startswith('http://'):
+        return 'https://' + url[7:]
+    return url
+
+
 def get_public_url(object_key):
     """根据 object_key 返回可访问的 URL。"""
     domain = getattr(settings, 'OSS_BUCKET_DOMAIN', '').strip()
@@ -40,7 +47,7 @@ def get_public_url(object_key):
     if not endpoint.startswith('http'):
         endpoint = f"https://{endpoint}"
     base = endpoint.replace('https://', '').replace('http://', '')
-    return f"https://{bucket_name}.{base}/{object_key}"
+    return _ensure_https_url(f"https://{bucket_name}.{base}/{object_key}")
 
 
 def create_presigned_upload(filename, subdir='', allowed_extensions=None, content_type='', expires=3600):
@@ -63,7 +70,9 @@ def create_presigned_upload(filename, subdir='', allowed_extensions=None, conten
     ct = (content_type or 'application/octet-stream').split(';')[0].strip()
     try:
         # 预签名时绑定 Content-Type，浏览器 PUT 必须发送相同值
-        upload_url = bucket.sign_url('PUT', object_key, expires, headers={'Content-Type': ct})
+        upload_url = _ensure_https_url(
+            bucket.sign_url('PUT', object_key, expires, headers={'Content-Type': ct})
+        )
         public_url = get_public_url(object_key)
         if not public_url:
             return False, None, None, '无法生成文件访问 URL，请检查 OSS_ENDPOINT 配置'
