@@ -45,11 +45,16 @@ def _normalize_highlight_phrases(value):
         text = str(item.get('text') or '').strip()
         if not text:
             continue
-        result.append({
+        entry = {
             'text': text,
             'chinese': str(item.get('chinese') or ''),
             'color': str(item.get('color') or '#fff9c4'),
-        })
+        }
+        if item.get('textColor'):
+            entry['textColor'] = str(item.get('textColor'))
+        if item.get('borderColor'):
+            entry['borderColor'] = str(item.get('borderColor'))
+        result.append(entry)
     return result
 
 
