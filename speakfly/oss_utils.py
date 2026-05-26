@@ -84,7 +84,7 @@ def upload_file_to_oss(file, subdir='', allowed_extensions=None):
     if not bucket:
         return False, None, 'OSS 未配置，请在环境变量中设置 OSS_ACCESS_KEY_ID、OSS_ACCESS_KEY_SECRET、OSS_BUCKET_NAME、OSS_ENDPOINT'
 
-    base_dir = getattr(settings, 'OSS_UPLOAD_DIR', 'speakfly')
+    base_dir = (getattr(settings, 'OSS_UPLOAD_DIR', 'speakfly') or 'speakfly').strip().strip('/')
     ext = ''
     if hasattr(file, 'name') and file.name:
         ext = os.path.splitext(file.name)[1].lower()
