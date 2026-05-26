@@ -75,11 +75,18 @@ class VideoViewSet(ModelViewSet):
 
     @action(detail=True, methods=['get'], url_path='lesson')
     def lesson(self, request, pk=None):
-        """获取该视频的课程详情"""
+        """获取该视频的课程详情；无记录时自动创建空 Lesson，避免编辑页 404。"""
         video = get_object_or_404(Video, pk=pk)
-        lesson = Lesson.objects.filter(video=video).first()
-        if not lesson:
-            return Response(status=status.HTTP_404_NOT_FOUND)
+        lesson, _ = Lesson.objects.get_or_create(
+            video=video,
+            defaults={
+                'chinese_text': '',
+                'english_text': '',
+                'phrases': [],
+                'sentences': [],
+                'highlight_phrases': [],
+            },
+        )
         return Response(LessonSerializer(lesson).data)
 
 
@@ -125,14 +132,15 @@ class LessonViewSet(ModelViewSet):
         phrases = data.get('phrases', [])
         sentences = data.get('sentences', [])
         highlight_phrases = data.get('highlightPhrases', data.get('highlight_phrases', []))
+        from .serializers import _as_json_list, _normalize_highlight_phrases, _normalize_sentences
         lesson, created = Lesson.objects.update_or_create(
             video=video,
             defaults={
-                'chinese_text': chinese_text,
-                'english_text': english_text,
-                'phrases': phrases,
-                'sentences': sentences,
-                'highlight_phrases': highlight_phrases,
+                'chinese_text': chinese_text or '',
+                'english_text': english_text or '',
+                'phrases': _as_json_list(phrases),
+                'sentences': _normalize_sentences(sentences),
+                'highlight_phrases': _normalize_highlight_phrases(highlight_phrases),
             }
         )
         return Response(

@@ -33,6 +33,43 @@ class VideoCreateUpdateSerializer(serializers.ModelSerializer):
         ]
 
 
+def _as_json_list(value):
+    return value if isinstance(value, list) else []
+
+
+def _normalize_highlight_phrases(value):
+    result = []
+    for item in _as_json_list(value):
+        if not isinstance(item, dict):
+            continue
+        text = str(item.get('text') or '').strip()
+        if not text:
+            continue
+        result.append({
+            'text': text,
+            'chinese': str(item.get('chinese') or ''),
+            'color': str(item.get('color') or '#fff9c4'),
+        })
+    return result
+
+
+def _normalize_sentences(value):
+    result = []
+    for item in _as_json_list(value):
+        if not isinstance(item, dict):
+            continue
+        highlights = item.get('highlights')
+        if not isinstance(highlights, list):
+            highlights = []
+        result.append({
+            'english': str(item.get('english') or ''),
+            'phonetic': str(item.get('phonetic') or ''),
+            'chinese': str(item.get('chinese') or ''),
+            'highlights': [str(h).strip() for h in highlights if str(h).strip()],
+        })
+    return result
+
+
 class LessonSerializer(serializers.ModelSerializer):
     """课程详情序列化（前端期望：videoId, chineseText, englishText, phrases, sentences, highlightPhrases）"""
     videoId = serializers.IntegerField(source='video_id', read_only=True)
@@ -47,11 +84,11 @@ class LessonSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         data = super().to_representation(instance)
         data['videoId'] = instance.video_id
-        data['chineseText'] = instance.chinese_text
-        data['englishText'] = instance.english_text
-        data['phrases'] = instance.phrases or []
-        data['sentences'] = instance.sentences or []
-        data['highlightPhrases'] = instance.highlight_phrases or []
+        data['chineseText'] = instance.chinese_text or ''
+        data['englishText'] = instance.english_text or ''
+        data['phrases'] = _as_json_list(instance.phrases)
+        data['sentences'] = _normalize_sentences(instance.sentences)
+        data['highlightPhrases'] = _normalize_highlight_phrases(instance.highlight_phrases)
         return data
 
     def to_internal_value(self, data):

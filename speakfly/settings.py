@@ -175,3 +175,12 @@ OSS_BUCKET_NAME = os.environ.get('OSS_BUCKET_NAME', '')
 OSS_ENDPOINT = os.environ.get('OSS_ENDPOINT', '')  # 如 oss-cn-hangzhou.aliyuncs.com
 OSS_BUCKET_DOMAIN = os.environ.get('OSS_BUCKET_DOMAIN', '')  # 自定义域名或 bucket.oss-region.aliyuncs.com，用于返回文件 URL
 OSS_UPLOAD_DIR = os.environ.get('OSS_UPLOAD_DIR', 'speakfly')  # 存储目录前缀
+
+# 生产环境 HTTPS（Nginx 反代时设置 DJANGO_USE_HTTPS=true）
+if os.environ.get('DJANGO_USE_HTTPS', '').lower() == 'true':
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
