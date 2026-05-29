@@ -35,6 +35,9 @@ jobs:
             echo "==> Enter project directory"
             cd /opt/speakfly/speakFly_back_end
 
+            echo "==> Remove conflicting untracked workflow file (if any)"
+            rm -f .github/workflows/deploy.yml
+
             echo "==> Current commit (before pull)"
             git rev-parse --short HEAD
             git log -1 --oneline
