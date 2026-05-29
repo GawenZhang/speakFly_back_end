@@ -8,6 +8,7 @@ router.register(r'lessons', views.LessonViewSet, basename='lesson')
 
 urlpatterns = [
     # 固定路径须放在 router 之前，避免被 videos/<pk>/ 误匹配
+    path('phonetic/', views.PhoneticConvertView.as_view()),
     path('videos/next-episode/', views.NextEpisodeView.as_view()),
     path('upload/sign/', views.SignOSSUploadView.as_view()),
     path('upload/', views.UploadToOSSView.as_view()),

@@ -248,3 +248,38 @@ class UploadToOSSView(APIView):
             return Response({'detail': '上传成功但未生成 URL，请检查 OSS_ENDPOINT', 'url': None}, status=status.HTTP_400_BAD_REQUEST)
         logger.info('upload_ok type=%s url=%s', upload_type, url[:80])
         return Response({'url': url, 'detail': '上传成功'})
+
+
+def convert_word_to_phonetic(word):
+    """英文单词/短语转 IPA 音标，供 API 调用。"""
+    import eng_to_ipa as ipa
+
+    text = (word or '').strip()
+    if not text:
+        return ''
+
+    raw = ipa.convert(text).strip()
+    if not raw:
+        return ''
+    if raw.startswith('/') and raw.endswith('/'):
+        return raw
+    return f'/{raw}/'
+
+
+class PhoneticConvertView(APIView):
+    """英文转音标（不落库，按需查询）"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        word = (request.query_params.get('word') or '').strip()
+        if not word:
+            return Response({'detail': '缺少 word 参数'}, status=status.HTTP_400_BAD_REQUEST)
+        phonetic = convert_word_to_phonetic(word)
+        return Response({'word': word, 'phonetic': phonetic})
+
+    def post(self, request):
+        word = (request.data.get('word') or '').strip()
+        if not word:
+            return Response({'detail': '缺少 word 参数'}, status=status.HTTP_400_BAD_REQUEST)
+        phonetic = convert_word_to_phonetic(word)
+        return Response({'word': word, 'phonetic': phonetic})
