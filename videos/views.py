@@ -5,7 +5,10 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 from django.shortcuts import get_object_or_404
+import logging
 import re
+
+logger = logging.getLogger('speakfly.phonetic')
 
 from .models import Video, Lesson, UserFavorite
 from .serializers import (
@@ -270,16 +273,23 @@ class PhoneticConvertView(APIView):
     """英文转音标（不落库，按需查询）"""
     permission_classes = [IsAuthenticated]
 
-    def get(self, request):
-        word = (request.query_params.get('word') or '').strip()
+    def _convert(self, request, word):
         if not word:
+            logger.warning('phonetic_missing_word user_id=%s', getattr(request.user, 'id', None))
             return Response({'detail': '缺少 word 参数'}, status=status.HTTP_400_BAD_REQUEST)
         phonetic = convert_word_to_phonetic(word)
+        logger.info(
+            'phonetic_ok user_id=%s word=%s phonetic=%s',
+            getattr(request.user, 'id', None),
+            word[:80],
+            phonetic[:80],
+        )
         return Response({'word': word, 'phonetic': phonetic})
+
+    def get(self, request):
+        word = (request.query_params.get('word') or '').strip()
+        return self._convert(request, word)
 
     def post(self, request):
         word = (request.data.get('word') or '').strip()
-        if not word:
-            return Response({'detail': '缺少 word 参数'}, status=status.HTTP_400_BAD_REQUEST)
-        phonetic = convert_word_to_phonetic(word)
-        return Response({'word': word, 'phonetic': phonetic})
+        return self._convert(request, word)

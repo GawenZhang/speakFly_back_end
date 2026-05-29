@@ -155,6 +155,8 @@ LOGGING = {
     'loggers': {
         'django.request': {'level': 'WARNING', 'propagate': True},
         'speakfly.request': {'level': 'INFO', 'propagate': True},
+        'speakfly.phonetic': {'level': 'INFO', 'propagate': True},
+        'speakfly.upload': {'level': 'INFO', 'propagate': True},
     },
 }
 

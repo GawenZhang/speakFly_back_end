@@ -11,6 +11,13 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - name: Print workflow context
+        run: |
+          echo "Run ID: ${{ github.run_id }}"
+          echo "Commit: ${{ github.sha }}"
+          echo "Ref: ${{ github.ref }}"
+          echo "Actor: ${{ github.actor }}"
+
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -21,25 +28,51 @@ jobs:
           script: |
             set -euo pipefail
 
+            echo "========================================"
+            echo "SpeakFly deploy started at $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+            echo "========================================"
+
             echo "==> Enter project directory"
             cd /opt/speakfly/speakFly_back_end
+
+            echo "==> Current commit (before pull)"
+            git rev-parse --short HEAD
+            git log -1 --oneline
 
             echo "==> Pull latest code"
             git pull origin main
 
+            echo "==> Current commit (after pull)"
+            git rev-parse --short HEAD
+            git log -1 --oneline
+
             echo "==> Activate virtual environment"
             source /opt/speakfly/speakfly_env/bin/activate
+            echo "Python: $(python --version)"
+            echo "Pip: $(pip --version)"
 
             echo "==> Install dependencies"
             pip install --upgrade pip
             pip install -r requirements.txt
+            pip show eng-to-ipa | grep -E 'Name|Version' || echo "eng-to-ipa not installed"
 
             echo "==> Run database migrations"
             python manage.py migrate --noinput
 
+            echo "==> Django check"
+            python manage.py check
+
             echo "==> Restart speakfly service"
             sudo systemctl restart speakfly
 
-            echo "==> Check service status"
+            echo "==> Service status"
             sudo systemctl is-active --quiet speakfly
+            sudo systemctl status speakfly --no-pager -l | head -15
+
+            echo "==> Recent service logs"
+            sudo journalctl -u speakfly -n 15 --no-pager || true
+
+            echo "========================================"
             echo "Deployment completed successfully."
+            echo "Finished at $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+            echo "========================================"
